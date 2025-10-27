@@ -21,8 +21,11 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 
-import com.atakmap.android.missionpackage.api.MissionPackageApi;
+import com.atakmap.android.importexport.send.SendDialog;
+import com.atakmap.android.maps.MapItem;
+import com.atakmap.android.maps.MapView;
 import com.atakmap.android.preference.AtakPreferences;
+import com.atakmap.android.util.ATAKConstants;
 import com.atakmap.app.R;
 import com.atakmap.coremap.conversions.CoordinateFormat;
 import com.atakmap.coremap.conversions.CoordinateFormatUtilities;
@@ -43,7 +46,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
+import java.util.Locale;
 
 /**
  * Adapter for the favorite list supplied as part of the Maps and Favorites drop down.   Contains
@@ -83,28 +86,9 @@ public class FavoriteListAdapter extends BaseAdapter {
 
         _prefs = AtakPreferences.getInstance(context);
 
-        DELETE_ICON = getDrawable("icons/delete.png", "delete.png");
-        EDIT_ICON = getDrawable("icons/edit2.png", "edit2.png");
-        SEND_ICON = getDrawable("icons/send.png", "send.png");
-    }
-
-    private Drawable getDrawable(String fileName, String srcName) {
-        InputStream is1 = null;
-        try {
-            return Drawable.createFromStream(
-                    is1 = _context.getAssets().open(fileName),
-                    srcName);
-        } catch (IOException e) {
-            Log.e(TAG, "error: ", e);
-        } finally {
-            if (is1 != null) {
-                try {
-                    is1.close();
-                } catch (IOException ignore) {
-                }
-            }
-        }
-        return null;
+        DELETE_ICON = context.getDrawable(R.drawable.nav_delete);
+        EDIT_ICON = context.getDrawable(R.drawable.ic_navstack_edit);
+        SEND_ICON = context.getDrawable(R.drawable.send_square);
     }
 
     @Override
@@ -226,18 +210,25 @@ public class FavoriteListAdapter extends BaseAdapter {
             public void onClick(View v) {
                 Favorite fav = mData.get(position);
 
+                final MapItem selfMarker = MapView.getMapView().getSelfMarker();
+
+                String selfMarkerTitle = selfMarker.getMetaString("callsign", "unknown");
+
                 //save file to disk
                 File file = FileSystemUtils
-                        .getItem(FileSystemUtils.EXPORT_DIRECTORY
-                                + File.separatorChar + "fav_"
-                                + UUID.randomUUID().toString().substring(0, 5)
-                                + ".txt");
+                        .getItem((FileSystemUtils.EXPORT_DIRECTORY
+                                + File.separatorChar + "fav_" + selfMarkerTitle +"_"
+                                + FileSystemUtils.sanitizeFilename(fav.title)
+                                + ".txt").toLowerCase(Locale.getDefault()));
                 write(file, fav);
 
                 //send as mission package
-                if (FileSystemUtils.isFile(file))
-                    MissionPackageApi.Send(file, fav.title);
-                else
+                if (FileSystemUtils.isFile(file)) {
+                    SendDialog.Builder b = new SendDialog.Builder(MapView.getMapView());
+                    b.addFile(file);
+                    b.setIcon(ATAKConstants.getIcon());
+                    b.show();
+                } else
                     Log.w(TAG, "Failed to send: " + fav.toString());
             }
         });

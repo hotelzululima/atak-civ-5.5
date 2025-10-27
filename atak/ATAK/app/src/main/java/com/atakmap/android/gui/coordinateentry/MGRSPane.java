@@ -45,10 +45,10 @@ public class MGRSPane extends AbstractPane implements View.OnClickListener {
         _mgrsEast = view.findViewById(R.id.coordDialogMGRSEastingText);
         _mgrsNorth = view.findViewById(R.id.coordDialogMGRSNorthingText);
 
-        _mgrsZone.setSelectAllOnFocus(true);
-        _mgrsSquare.setSelectAllOnFocus(true);
-        _mgrsEast.setSelectAllOnFocus(true);
-        _mgrsNorth.setSelectAllOnFocus(true);
+        setSelectAllOnFocus(_mgrsZone);
+        setSelectAllOnFocus(_mgrsSquare);
+        setSelectAllOnFocus(_mgrsEast);
+        setSelectAllOnFocus(_mgrsNorth);
 
         _mgrsZone.addTextChangedListener(new AfterTextChangedWatcher() {
             @Override
@@ -99,8 +99,8 @@ public class MGRSPane extends AbstractPane implements View.OnClickListener {
         _mgrsRawZoneSquare.addTextChangedListener(rawMgrsWatcher);
         _mgrsRawEastingNorthing.addTextChangedListener(rawMgrsWatcher);
 
-        _mgrsRawZoneSquare.setSelectAllOnFocus(true);
-        _mgrsRawEastingNorthing.setSelectAllOnFocus(true);
+        setSelectAllOnFocus(_mgrsRawZoneSquare);
+        setSelectAllOnFocus(_mgrsRawEastingNorthing);
 
         _mgrsRaw = view.findViewById(R.id.rawMGRS);
 
@@ -127,7 +127,7 @@ public class MGRSPane extends AbstractPane implements View.OnClickListener {
             }
         });
 
-        _mgrsRaw.setSelectAllOnFocus(true);
+        setSelectAllOnFocus(_mgrsRaw);
 
     }
 

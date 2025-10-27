@@ -734,12 +734,11 @@ public abstract class DropDownReceiver extends BroadcastReceiver {
             _fragmentManager.beginTransaction()
                     .remove(_dropDown.getFragment())
                     .commitAllowingStateLoss();
+            _fragmentManager.popBackStackImmediate();
         } catch (Exception e) {
             Log.e(TAG,
                     "error removing fragment for: " + _dropDown.getFragment());
         }
-        _fragmentManager.popBackStack(this.getClass().toString(),
-                FragmentManager.POP_BACK_STACK_INCLUSIVE);
     }
 
     /**

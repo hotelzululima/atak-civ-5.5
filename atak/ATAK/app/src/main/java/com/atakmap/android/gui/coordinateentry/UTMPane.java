@@ -51,9 +51,9 @@ public class UTMPane extends AbstractPane implements View.OnClickListener {
         _utmRawEastingNorthing = view
                 .findViewById(R.id.coordDialogUTMEastingNorthingRawText);
 
-        _utmZone.setSelectAllOnFocus(true);
-        _utmEast.setSelectAllOnFocus(true);
-        _utmNorth.setSelectAllOnFocus(true);
+        setSelectAllOnFocus(_utmZone);
+        setSelectAllOnFocus(_utmEast);
+        setSelectAllOnFocus(_utmNorth);
 
         addOnChangeListener(_utmZone);
         addOnChangeListener(_utmEast);
@@ -62,8 +62,8 @@ public class UTMPane extends AbstractPane implements View.OnClickListener {
         _utmRawZone.addTextChangedListener(rawUtmWatcher);
         _utmRawEastingNorthing.addTextChangedListener(rawUtmWatcher);
 
-        _utmRawZone.setSelectAllOnFocus(true);
-        _utmRawEastingNorthing.setSelectAllOnFocus(true);
+        setSelectAllOnFocus(_utmRawZone);
+        setSelectAllOnFocus(_utmRawEastingNorthing);
 
         view.findViewById(R.id.swapUTM).setOnClickListener(this);
         _utmRaw.addTextChangedListener(new AfterTextChangedWatcher() {
@@ -88,7 +88,7 @@ public class UTMPane extends AbstractPane implements View.OnClickListener {
                 }
             }
         });
-        _utmRaw.setSelectAllOnFocus(true);
+        setSelectAllOnFocus(_utmRaw);
     }
 
     @Override

@@ -8,11 +8,12 @@ import android.widget.EditText;
 
 import androidx.annotation.NonNull;
 
-import gov.tak.platform.lang.Parsers;
 import com.atakmap.app.R;
 import com.atakmap.coremap.conversions.CoordinateFormat;
 import com.atakmap.coremap.conversions.CoordinateFormatUtilities;
 import com.atakmap.coremap.maps.coords.GeoPointMetaData;
+
+import gov.tak.platform.lang.Parsers;
 
 public class DDPane extends AbstractPane {
 
@@ -27,8 +28,8 @@ public class DDPane extends AbstractPane {
         _ddLat = view.findViewById(R.id.coordDialogDDLatText);
         _ddLon = view.findViewById(R.id.coordDialogDDLonText);
 
-        _ddLat.setSelectAllOnFocus(true);
-        _ddLon.setSelectAllOnFocus(true);
+        setSelectAllOnFocus(_ddLat);
+        setSelectAllOnFocus(_ddLon);
 
         addOnChangeListener(_ddLat);
         addOnChangeListener(_ddLon);
