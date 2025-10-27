@@ -48,24 +48,24 @@
             style="@style/darkButton"
             android:id="@+id/favDelete"
             android:padding="6dp"
-            android:layout_width="52dp"
-            android:layout_height="50dp"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
             android:scaleType="center" />
 
         <ImageButton
             android:id="@+id/favEdit"
             style="@style/darkButton"
             android:padding="6dp"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
             android:scaleType="center" />
 
         <ImageButton
             android:id="@+id/favSend"
             style="@style/darkButton"
             android:padding="6dp"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
             android:scaleType="center" />
     </LinearLayout>
 

@@ -35,7 +35,6 @@ import com.atakmap.android.preference.AtakPreferences;
 import com.atakmap.android.preference.UnitPreferences;
 import com.atakmap.android.util.ATAKUtilities;
 import com.atakmap.android.util.AfterTextChangedWatcher;
-import gov.tak.platform.lang.Parsers;
 import com.atakmap.app.R;
 import com.atakmap.coremap.conversions.ConversionFactors;
 import com.atakmap.coremap.conversions.CoordinateFormat;
@@ -58,6 +57,7 @@ import java.util.Map;
 import java.util.Set;
 
 import gov.tak.api.util.Disposable;
+import gov.tak.platform.lang.Parsers;
 
 public class CoordinateEntryCapability
         implements View.OnClickListener, Disposable,
@@ -329,7 +329,7 @@ public class CoordinateEntryCapability
         _elevSource = panel.findViewById(R.id.coordDialogElevationSource);
 
         _elevText = panel.findViewById(R.id.coordDialogElevationText);
-        _elevText.setSelectAllOnFocus(true);
+        AbstractPane.setSelectAllOnFocus(_elevText);
 
         _elevUnits = panel.findViewById(R.id.coordDialogElevationUnits);
 

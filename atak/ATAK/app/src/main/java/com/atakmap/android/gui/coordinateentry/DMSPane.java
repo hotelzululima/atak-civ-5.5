@@ -29,13 +29,13 @@ public class DMSPane extends AbstractPane {
         _dmsLonM = view.findViewById(R.id.coordDialogDMSLonMinText);
         _dmsLonS = view.findViewById(R.id.coordDialogDMSLonSecText);
 
-        _dmsLatD.setSelectAllOnFocus(true);
-        _dmsLatM.setSelectAllOnFocus(true);
-        _dmsLatS.setSelectAllOnFocus(true);
+        setSelectAllOnFocus(_dmsLatD);
+        setSelectAllOnFocus(_dmsLatM);
+        setSelectAllOnFocus(_dmsLatS);
 
-        _dmsLonD.setSelectAllOnFocus(true);
-        _dmsLonM.setSelectAllOnFocus(true);
-        _dmsLonS.setSelectAllOnFocus(true);
+        setSelectAllOnFocus(_dmsLonD);
+        setSelectAllOnFocus(_dmsLonM);
+        setSelectAllOnFocus(_dmsLonS);
 
         addOnChangeListener(_dmsLatD);
         addOnChangeListener(_dmsLatM);

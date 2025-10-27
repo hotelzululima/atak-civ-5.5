@@ -211,4 +211,21 @@ abstract class AbstractPane implements CoordinateEntryPane {
     public void dispose() {
 
     }
+
+
+    static void setSelectAllOnFocus(final EditText et) {
+        final String model = android.os.Build.MODEL;
+        if (model.startsWith("SM-G960")) {
+            et.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+                    if (hasFocus) {
+                        et.setSelection(et.getText().length());
+                    }
+                }
+            });
+        } else {
+            et.setSelectAllOnFocus(true);
+        }
+    }
 }
