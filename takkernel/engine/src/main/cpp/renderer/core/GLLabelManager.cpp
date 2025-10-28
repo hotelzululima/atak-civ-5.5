@@ -675,6 +675,7 @@ void GLLabelManager::draw(const GLGlobeBase& view, const int render_pass) NOTHRO
             labels.modifyBuffer.refreshRequested = false;
         }
         const auto &idsToRender = is_surface_pass ? idsToRenderSurface_ : idsToRenderSprite_;
+        ReadLock rlock(renderables_mutex_);
         renderedLabels.resize(idsToRender.size());
         memcpy(renderedLabels.data(), idsToRender.data(), idsToRender.size() * sizeof(uint32_t));
     }

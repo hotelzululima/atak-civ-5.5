@@ -1253,16 +1253,19 @@ const TAK::Engine::Feature::Geometry2* GLLabel::getGeometry() const NOTHROWS { r
 void GLLabel::setAltitudeMode(const TAK::Engine::Feature::AltitudeMode altitude_mode) NOTHROWS { altitude_mode_ = altitude_mode; }
 
 void GLLabel::setText(TAK::Engine::Port::String text) NOTHROWS {
+    std::string localized_text;
     if (text.get() != nullptr) {
 #if CALL_LOCALIZE
         Port::String localizedText;
         GLText2_localize(&localizedText, text.get());
-        text_ = localizedText.get() ? localizedText.get() : "";
-#else
-        text_ = text.get();
+        localized_text = localizedText.get() ? localizedText.get() : "";
 #endif
-    } else
-        text_.clear();
+        localized_text = text.get();
+    }
+
+    if (localized_text == text_) return; // No change - Avoid invalidation of text size
+
+    text_ = localized_text;
 
     // invalidate text size
     textSize.width = 0.f;

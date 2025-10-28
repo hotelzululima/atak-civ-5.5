@@ -150,6 +150,10 @@ namespace
     TAKErr IOProviderFactoryProxy::createTempFile(TAK::Engine::Port::String &value, const char *prefix, const char *suffix, const char *dir) NOTHROWS
     {
         LocalJNIEnv env;
+
+        if(prefix == nullptr)
+            prefix = "XXXXXX";
+
         JNILocalRef mprefix(*env, env->NewStringUTF(prefix));
         JNILocalRef msuffix(*env, env->NewStringUTF(suffix));
         JNILocalRef mdir(*env, NULL);

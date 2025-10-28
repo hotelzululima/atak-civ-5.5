@@ -465,7 +465,7 @@ namespace
                     
                     for (int i = 0; tempDirOk && i <= numLegacyCiphersets; ++i) {
                         // Create new temp file for each attempt
-                        if (IO_createTempFile(migrateDBFile, NULL, NULL, dbdir) != TAKErr::TE_Ok) {
+                        if (IO_createTempFile(migrateDBFile, nullptr, NULL, dbdir) != TAKErr::TE_Ok) {
                             Logger::log(Logger::Debug, MEM_FN("SpatiaLiteDB")
                                     "Creating temp database file at %s for cipher migration failed", dbdir.get());
                             break;
