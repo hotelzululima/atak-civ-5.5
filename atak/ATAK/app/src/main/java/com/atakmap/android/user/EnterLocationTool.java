@@ -286,8 +286,15 @@ public class EnterLocationTool extends Tool implements
         } else if (type.equals(MapEvent.ITEM_CLICK)) {
             MapItem mi = event.getItem();
             GeoPointMetaData gp = findPoint(event);
+            MapItem item = null;
 
-            MapItem item = this.enterLocation.processPoint(gp, mi);
+            if (_currType.equals("damaged")) {
+                item = this.enterLocation.processCASEVAC(gp);
+                requestEndTool();
+            } else {
+                item = this.enterLocation.processPoint(gp, mi);
+            }
+
             if (item != null) {
                 RecentlyAddedDropDownReceiver.instance
                         .addToRecentList(item);

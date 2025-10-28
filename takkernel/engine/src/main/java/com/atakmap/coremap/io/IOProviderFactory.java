@@ -190,6 +190,11 @@ public class IOProviderFactory
     private static void makeParentDirIfNeeded(File f) throws IOException
     {
         File parent = f.getParentFile();
+
+        if (parent == null)
+            throw new IOException(
+                    "Unable to find the parent directory for " + f);
+
         String pDir = parent.getPath();
         if (!exists(parent))
         {

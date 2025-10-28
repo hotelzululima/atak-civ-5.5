@@ -1,5 +1,10 @@
 # Version History
 
+## 8.30.4
+
+* Fix self-marker compass overlay label flicker (backports 8.37.2)
+* Java io filesystem implementation: Handle null prefix parameter to createTempFile() - this is allowed in native filesystem interface but not supported in Java-side IOProvider (backports 8.39.2)
+
 ## 8.30.3
 
 * 2525D+ versions rolled back to `mil-sym-java@2.1.5` and `mil-sym-android@2.4.0`
