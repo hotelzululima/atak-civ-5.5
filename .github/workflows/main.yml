@@ -1,0 +1,260 @@
+name: Build & Release ATAK CIV SDK (5.5)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build (branch/tag/commit). Leave empty to use default."
+        required: false
+        default: ""
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-22.04
+
+    env:
+      # Defaults if auto-detect fails (kept compatible with older trees)
+      FALLBACK_COMPILE_SDK: "29"
+      FALLBACK_BUILD_TOOLS: "29.0.3"
+      FALLBACK_NDK: "12b"
+      ANDROID_SDK_TOOLS_ZIP: "9477386_latest" # commandlinetools; use sdkmanager
+      CMAKE_VERSION_PIN: "3.14.7"             # parity with legacy workflow
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.ref || '' }}
+
+      - name: Git LFS pull
+        run: |
+          git lfs install --local
+          git lfs fetch
+          git lfs checkout
+
+      - name: Set up Java (Temurin 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Install base packages
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            ant apg dos2unix autoconf automake g++ libtool patch make \
+            cmake ninja-build swig tcl zip python3-pip unzip wget xz-utils \
+            curl ca-certificates jq
+          python3 -m pip install -U pip setuptools
+          python3 -m pip install "conan==1.59.0"
+
+      - name: Detect Android versions from Gradle
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Try to detect from atak/ATAK/* gradle files
+          detect_compile_sdk() {
+            local v=""
+            if grep -Riq "compileSdkVersion" atak/ATAK 2>/dev/null; then
+              v="$(grep -RhoP 'compileSdkVersion\s+(\d+)' atak/ATAK | tail -1 | awk '{print $2}' || true)"
+            fi
+            if [[ -z "$v" ]] && grep -Riq "compileSdk" atak/ATAK 2>/dev/null; then
+              v="$(grep -RhoP 'compileSdk\s+(\d+)' atak/ATAK | tail -1 | awk '{print $2}' || true)"
+            fi
+            echo "${v}"
+          }
+          detect_build_tools() {
+            local v=""
+            if grep -Riq "buildToolsVersion" atak/ATAK 2>/dev/null; then
+              v="$(grep -RhoP "buildToolsVersion\\s*['\\\"]([0-9.]+)['\\\"]" atak/ATAK | tail -1 | sed -E "s/.*['\"]([0-9.]+)['\"].*/\\1/" || true)"
+            fi
+            echo "${v}"
+          }
+          detect_ndk() {
+            local v=""
+            if grep -Riq "android\.ndkVersion" . 2>/dev/null; then
+              v="$(grep -RhoP "android\\.ndkVersion\\s*[=:]\\s*['\\\"]([^'\\\"]+)['\\\"]" . | tail -1 | sed -E "s/.*['\"]([^'\\\"]+)['\"].*/\\1/" || true)"
+            fi
+            echo "${v}"
+          }
+
+          COMPILE_SDK="$(detect_compile_sdk)";  COMPILE_SDK="${COMPILE_SDK:-$FALLBACK_COMPILE_SDK}"
+          BUILD_TOOLS="$(detect_build_tools)";  BUILD_TOOLS="${BUILD_TOOLS:-$FALLBACK_BUILD_TOOLS}"
+          NDK_VERSION="$(detect_ndk)";          NDK_VERSION="${NDK_VERSION:-$FALLBACK_NDK}"
+
+          echo "compile: $COMPILE_SDK"
+          echo "buildTools: $BUILD_TOOLS"
+          echo "ndkVersion: $NDK_VERSION"
+
+          echo "COMPILE_SDK=$COMPILE_SDK" >> "$GITHUB_OUTPUT"
+          echo "BUILD_TOOLS=$BUILD_TOOLS" >> "$GITHUB_OUTPUT"
+          echo "NDK_VERSION=$NDK_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Android SDK (cmdline-tools)
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$PWD/android-sdk"
+          mkdir -p "$SDK/cmdline-tools"
+          wget -q -O cmdtools.zip "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_SDK_TOOLS_ZIP}.zip"
+          unzip -qq cmdtools.zip -d "$SDK/cmdline-tools"
+          mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+
+          echo "ANDROID_HOME=$SDK" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$SDK" >> $GITHUB_ENV
+          echo "$SDK/platform-tools" >> $GITHUB_PATH
+          echo "$SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
+
+          mkdir -p ~/.android
+          touch ~/.android/repositories.cfg
+
+          yes | sdkmanager --sdk_root="$SDK" "platform-tools" >/dev/null
+          yes | sdkmanager --sdk_root="$SDK" "platforms;android-${{ steps.detect.outputs.COMPILE_SDK }}" >/dev/null
+          yes | sdkmanager --sdk_root="$SDK" "build-tools;${{ steps.detect.outputs.BUILD_TOOLS }}" >/dev/null
+
+          # Prefer installing NDK via sdkmanager when version is numeric (e.g., 25.2.9519653)
+          if [[ "${{ steps.detect.outputs.NDK_VERSION }}" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            yes | sdkmanager --sdk_root="$SDK" "ndk;${{ steps.detect.outputs.NDK_VERSION }}" >/dev/null
+            echo "ANDROID_NDK=$SDK/ndk/${{ steps.detect.outputs.NDK_VERSION }}" >> $GITHUB_ENV
+            echo "ANDROID_NDK_HOME=$SDK/ndk/${{ steps.detect.outputs.NDK_VERSION }}" >> $GITHUB_ENV
+          else
+            # Legacy rXX zip fallback (e.g., 12b)
+            wget -q -O android-ndk.zip "https://dl.google.com/android/repository/android-ndk-r${{ steps.detect.outputs.NDK_VERSION }}-linux-x86_64.zip"
+            unzip -qq android-ndk.zip
+            echo "ANDROID_NDK=$PWD/android-ndk-r${{ steps.detect.outputs.NDK_VERSION }}" >> $GITHUB_ENV
+            echo "ANDROID_NDK_HOME=$PWD/android-ndk-r${{ steps.detect.outputs.NDK_VERSION }}" >> $GITHUB_ENV
+          fi
+
+          # Accept licenses
+          yes | sdkmanager --sdk_root="$SDK" --licenses >/dev/null || true
+
+      - name: Set up CMake (3.14.7, parity with legacy)
+        run: |
+          wget -q -O cmake.tar.gz "https://cmake.org/files/v3.14/cmake-${CMAKE_VERSION_PIN}-Linux-x86_64.tar.gz"
+          tar -xzf cmake.tar.gz
+          echo "CMAKE_HOME=$PWD/cmake-${CMAKE_VERSION_PIN}-Linux-x86_64" >> $GITHUB_ENV
+
+      - name: Install ATAK SDK keystore
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ secrets.SDK_KEYSTORE_FILE }} # base64
+          ANDROID_KEYSTORE_ALIAS: ${{ secrets.SDK_KEYSTORE_ALIAS }}
+          ANDROID_KEYSTORE_STORE_PASSWORD: ${{ secrets.SDK_KEYSTORE_STORE_PASSWORD }}
+          ANDROID_KEYSTORE_KEY_PASSWORD: ${{ secrets.SDK_KEYSTORE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          rm -rf $HOME/secrets && mkdir -p $HOME/secrets
+          if [[ -n "${ANDROID_KEYSTORE_FILE:-}" ]]; then
+            printf "%s" "$ANDROID_KEYSTORE_FILE" > $HOME/secrets/sdk_keystore.base64
+            base64 -d $HOME/secrets/sdk_keystore.base64 > $HOME/secrets/sdk_keystore
+            chmod 600 $HOME/secrets/sdk_keystore
+          fi
+          pushd atak >/dev/null
+          rm -f local.properties
+          {
+            [[ -s "$HOME/secrets/sdk_keystore" ]] && echo "takDebugKeyFile=$HOME/secrets/sdk_keystore"
+            [[ -n "${ANDROID_KEYSTORE_STORE_PASSWORD:-}" ]] && echo "takDebugKeyFilePassword=$ANDROID_KEYSTORE_STORE_PASSWORD"
+            [[ -n "${ANDROID_KEYSTORE_ALIAS:-}" ]] && echo "takDebugKeyAlias=$ANDROID_KEYSTORE_ALIAS"
+            [[ -n "${ANDROID_KEYSTORE_KEY_PASSWORD:-}" ]] && echo "takDebugKeyPassword=$ANDROID_KEYSTORE_KEY_PASSWORD"
+
+            [[ -s "$HOME/secrets/sdk_keystore" ]] && echo "takReleaseKeyFile=$HOME/secrets/sdk_keystore"
+            [[ -n "${ANDROID_KEYSTORE_STORE_PASSWORD:-}" ]] && echo "takReleaseKeyFilePassword=$ANDROID_KEYSTORE_STORE_PASSWORD"
+            [[ -n "${ANDROID_KEYSTORE_ALIAS:-}" ]] && echo "takReleaseKeyAlias=$ANDROID_KEYSTORE_ALIAS"
+            [[ -n "${ANDROID_KEYSTORE_KEY_PASSWORD:-}" ]] && echo "takReleaseKeyPassword=$ANDROID_KEYSTORE_KEY_PASSWORD"
+
+            echo "cmake.dir=${CMAKE_HOME}"
+            echo "ndk.dir=${ANDROID_NDK}"
+          } >> local.properties
+          popd >/dev/null
+
+      - name: Build dependencies (prebuild)
+        run: |
+          git submodule update --init --recursive
+          pushd scripts >/dev/null
+          bash ./prebuild.sh
+          popd >/dev/null
+          pushd takthirdparty >/dev/null
+          rm -rf distfiles || true
+          for i in builds/* ; do
+            [ -d "$i" ] || continue
+            pushd "$i" >/dev/null
+            find * -type d -not -name "include" -not -path "include/*" -not -name "java" -not -name "lib" -not -path "lib/ogdi" -print0 | xargs -0 -I {} rm -rf "{}" || true
+            find . -maxdepth 1 -type f -print0 | xargs -0 -I {} rm -f "{}" || true
+            ( cd lib && find . -maxdepth 1 -type f -not -name "*.so" -print0 | xargs -0 -I {} rm -f "{}" ) || true
+            popd >/dev/null
+          done
+          popd >/dev/null
+
+      - name: Assemble ATAK APK
+        run: |
+          pushd atak >/dev/null
+          echo "cmake.dir=${CMAKE_HOME}" >> local.properties
+          echo "ndk.dir=${ANDROID_NDK}" >> local.properties
+          rm -rf ATAK/app/build
+          bash ./gradlew --no-daemon generateJniHeaders
+          # default task name as in legacy; override in repo if it changes
+          bash ./gradlew --no-daemon assembleCivSdk
+          popd >/dev/null
+
+      - name: Generate ATAK CIV SDK package
+        id: package
+        run: |
+          set -euo pipefail
+          rm -rf takthirdparty takengine pluginsdk/
+          unzip -qq pluginsdk.zip
+
+          cp ./atak/ATAK/app/build/outputs/apk/civ/sdk/*-sdk.apk ./pluginsdk/atak.apk
+          cp ./atak/ATAK/app/build/libs/main.jar ./pluginsdk
+          cp ./atak/ATAK/app/src/main/assets/support/license/LICENSE.txt ./pluginsdk
+          cp -r ./plugin-examples ./pluginsdk/
+
+          echo "ATAK CIV SDK $(git rev-parse --short HEAD) ($(git show -s --format=%ct))" > pluginsdk/VERSION.txt
+
+          rm -rf javadoc tmp
+          mkdir -p tmp/src
+          cp -R ./atak/ATAK/app/src/common/java/* tmp/src
+          cp -R ./atak/ATAK/app/src/main/java/* tmp/src
+          pushd tmp/src >/dev/null
+          javadoc -linkoffline http://d.android.com/reference "file://$ANDROID_HOME/docs/reference" \
+            -d ../javadoc -classpath ".:$ANDROID_HOME/platforms/android-${{ steps.detect.outputs.COMPILE_SDK }}/android.jar" \
+            -subpackages . &>/dev/null || echo "success by failure"
+          popd >/dev/null
+          pushd tmp/javadoc >/dev/null
+          jar cvf ../../pluginsdk/atak-javadoc.jar . >/dev/null || true
+          popd >/dev/null
+
+          if [ -d atak-gradle-takdev ]; then
+            pushd atak-gradle-takdev >/dev/null
+            chmod 755 gradlew || true
+            dos2unix gradlew || true
+            ./gradlew --no-daemon jar
+            cp ./build/libs/atak-gradle-takdev-*.jar ../pluginsdk/atak-gradle-takdev.jar
+            popd >/dev/null
+          fi
+
+          mv pluginsdk atak-civ
+          ZIP="atak-civ-sdk-${{ github.event.release.tag_name || github.event.inputs.ref || 'manual' }}.zip"
+          zip -qq -r "$ZIP" atak-civ
+          echo "ZIP=$ZIP" >> "$GITHUB_OUTPUT"
+
+      - name: Upload ZIP to release (on release events)
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.package.outputs.ZIP }}
+
+      - name: Upload artifact (on manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: atak-civ-sdk
+          path: ${{ steps.package.outputs.ZIP }}
